@@ -8,3 +8,11 @@ export const CATEGORIES = [
 ];
 
 export const STORAGE_KEY = "knowledge-vault-items";
+
+export const MAX_LENGTHS = {
+  title: 200,
+  url: 2048,
+  description: 1000,
+  tags: 500,
+  notes: 5000,
+};

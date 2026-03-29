@@ -1,5 +1,16 @@
 export function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  return crypto.randomUUID();
+}
+
+export function sanitizeUrl(url) {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return "";
+    return url;
+  } catch {
+    return "";
+  }
 }
 
 export function timeAgo(ts) {

@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { CATEGORIES } from "../lib/constants";
-import { generateId, timeAgo, extractDomain } from "../lib/utils";
+import { generateId, timeAgo, extractDomain, sanitizeUrl } from "../lib/utils";
+import { MAX_LENGTHS } from "../lib/constants";
 import { useFirestore } from "../hooks/useFirestore";
 import { useInstallPrompt } from "../hooks/useInstallPrompt";
 
@@ -32,12 +33,19 @@ export default function KnowledgeVault({ user, onLogout }) {
 
   const handleSave = async () => {
     if (!form.title.trim()) return;
-    const tags = form.tags.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
+    const sanitized = {
+      title: form.title.slice(0, MAX_LENGTHS.title),
+      url: sanitizeUrl(form.url.slice(0, MAX_LENGTHS.url)),
+      description: form.description.slice(0, MAX_LENGTHS.description),
+      category: form.category,
+      tags: form.tags.slice(0, MAX_LENGTHS.tags).split(",").map(t => t.trim().toLowerCase()).filter(Boolean),
+      notes: form.notes.slice(0, MAX_LENGTHS.notes),
+    };
     if (editingId) {
-      await updateItem(editingId, { ...form, tags, updatedAt: Date.now() });
+      await updateItem(editingId, { ...sanitized, updatedAt: Date.now() });
       showToast("Resource updated");
     } else {
-      const newItem = { id: generateId(), ...form, tags, createdAt: Date.now(), updatedAt: Date.now(), pinned: false };
+      const newItem = { id: generateId(), ...sanitized, createdAt: Date.now(), updatedAt: Date.now(), pinned: false };
       await addItem(newItem);
       showToast("Resource saved");
     }
@@ -218,10 +226,10 @@ export default function KnowledgeVault({ user, onLogout }) {
             </div>
             <div style={styles.formBody}>
               <label style={styles.label}>Title *</label>
-              <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. How to use Figma Auto Layout" style={styles.input} />
+              <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. How to use Figma Auto Layout" maxLength={MAX_LENGTHS.title} style={styles.input} />
 
               <label style={styles.label}>URL</label>
-              <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} placeholder="https://..." style={styles.input} />
+              <input value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} placeholder="https://..." maxLength={MAX_LENGTHS.url} style={styles.input} />
 
               <label style={styles.label}>Category</label>
               <div className="cat-grid" style={styles.catGrid}>
@@ -233,13 +241,13 @@ export default function KnowledgeVault({ user, onLogout }) {
               </div>
 
               <label style={styles.label}>Description</label>
-              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="What is this about? Why is it useful?" rows={3} style={styles.textarea} />
+              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="What is this about? Why is it useful?" maxLength={MAX_LENGTHS.description} rows={3} style={styles.textarea} />
 
               <label style={styles.label}>Tags (comma-separated)</label>
-              <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="design, figma, tutorial" style={styles.input} />
+              <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="design, figma, tutorial" maxLength={MAX_LENGTHS.tags} style={styles.input} />
 
               <label style={styles.label}>Personal Notes</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Key takeaways, timestamps, reminders…" rows={3} style={styles.textarea} />
+              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Key takeaways, timestamps, reminders…" maxLength={MAX_LENGTHS.notes} rows={3} style={styles.textarea} />
             </div>
             <div style={styles.formFooter}>
               <button onClick={resetForm} style={styles.cancelBtn}>Cancel</button>
@@ -275,7 +283,7 @@ export default function KnowledgeVault({ user, onLogout }) {
 
               {/* URL */}
               {previewItem.url && (
-                <a href={previewItem.url} target="_blank" rel="noopener noreferrer" style={styles.previewUrl}>
+                <a href={sanitizeUrl(previewItem.url)} target="_blank" rel="noopener noreferrer" style={styles.previewUrl}>
                   {extractDomain(previewItem.url)} ↗
                 </a>
               )}
