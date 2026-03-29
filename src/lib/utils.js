@@ -34,3 +34,23 @@ export function extractDomain(url) {
     return "";
   }
 }
+
+export function extractYouTubeId(url) {
+  if (!url) return null;
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  return match ? match[1] : null;
+}
+
+export function getYouTubeThumbnail(url) {
+  const id = extractYouTubeId(url);
+  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
+}
+
+export function getFaviconUrl(url, size = 32) {
+  const domain = extractDomain(url);
+  return domain
+    ? `https://www.google.com/s2/favicons?domain=${domain}&sz=${size}`
+    : null;
+}

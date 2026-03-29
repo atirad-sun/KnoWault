@@ -157,13 +157,14 @@ describe("KnowledgeVault", () => {
     const titleInput = screen.getByPlaceholderText(/e\.g\./);
     const urlInput = screen.getByPlaceholderText("https://...");
     const descInput = screen.getByPlaceholderText(/What is this about/);
-    const tagsInput = screen.getByPlaceholderText("design, figma, tutorial");
+    const tagsInput = screen.getByPlaceholderText("Type a tag and press Enter");
     const notesInput = screen.getByPlaceholderText(/Key takeaways/);
 
     expect(titleInput).toHaveAttribute("maxlength", "200");
     expect(urlInput).toHaveAttribute("maxlength", "2048");
     expect(descInput).toHaveAttribute("maxlength", "1000");
-    expect(tagsInput).toHaveAttribute("maxlength", "500");
+    // TagInput enforces max length programmatically, not via maxlength attribute
+    expect(tagsInput).toBeInTheDocument();
     expect(notesInput).toHaveAttribute("maxlength", "5000");
   });
 });

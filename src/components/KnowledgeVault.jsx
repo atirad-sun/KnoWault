@@ -1,6 +1,8 @@
 import { useState, useRef } from "react";
 import { CATEGORIES } from "../lib/constants";
-import { generateId, timeAgo, extractDomain, sanitizeUrl } from "../lib/utils";
+import { generateId, timeAgo, extractDomain, sanitizeUrl, extractYouTubeId } from "../lib/utils";
+import { YouTubeThumbnail, Favicon } from "./ResourceImage";
+import TagInput from "./TagInput";
 import { MAX_LENGTHS } from "../lib/constants";
 import { useFirestore } from "../hooks/useFirestore";
 import { useInstallPrompt } from "../hooks/useInstallPrompt";
@@ -13,7 +15,7 @@ export default function KnowledgeVault({ user, onLogout }) {
   const [filterTag, setFilterTag] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ title: "", url: "", description: "", category: "article", tags: "", notes: "" });
+  const [form, setForm] = useState({ title: "", url: "", description: "", category: "article", tags: [], notes: "" });
   const [toast, setToast] = useState(null);
   const [previewItem, setPreviewItem] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -26,7 +28,7 @@ export default function KnowledgeVault({ user, onLogout }) {
   };
 
   const resetForm = () => {
-    setForm({ title: "", url: "", description: "", category: "article", tags: "", notes: "" });
+    setForm({ title: "", url: "", description: "", category: "article", tags: [], notes: "" });
     setEditingId(null);
     setShowAdd(false);
   };
@@ -38,7 +40,7 @@ export default function KnowledgeVault({ user, onLogout }) {
       url: sanitizeUrl(form.url.slice(0, MAX_LENGTHS.url)),
       description: form.description.slice(0, MAX_LENGTHS.description),
       category: form.category,
-      tags: form.tags.slice(0, MAX_LENGTHS.tags).split(",").map(t => t.trim().toLowerCase()).filter(Boolean),
+      tags: form.tags.map(t => t.trim().toLowerCase()).filter(Boolean),
       notes: form.notes.slice(0, MAX_LENGTHS.notes),
     };
     if (editingId) {
@@ -54,7 +56,7 @@ export default function KnowledgeVault({ user, onLogout }) {
   };
 
   const handleEdit = (item) => {
-    setForm({ title: item.title, url: item.url, description: item.description, category: item.category, tags: item.tags.join(", "), notes: item.notes || "" });
+    setForm({ title: item.title, url: item.url, description: item.description, category: item.category, tags: [...item.tags], notes: item.notes || "" });
     setEditingId(item.id);
     setPreviewItem(null);
     setShowAdd(true);
@@ -243,8 +245,13 @@ export default function KnowledgeVault({ user, onLogout }) {
               <label style={styles.label}>Description</label>
               <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="What is this about? Why is it useful?" maxLength={MAX_LENGTHS.description} rows={3} style={styles.textarea} />
 
-              <label style={styles.label}>Tags (comma-separated)</label>
-              <input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="design, figma, tutorial" maxLength={MAX_LENGTHS.tags} style={styles.input} />
+              <label style={styles.label}>Tags</label>
+              <TagInput
+                tags={form.tags}
+                onChange={(newTags) => setForm(f => ({ ...f, tags: newTags }))}
+                allTags={allTags}
+                maxLength={MAX_LENGTHS.tags}
+              />
 
               <label style={styles.label}>Personal Notes</label>
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Key takeaways, timestamps, reminders…" maxLength={MAX_LENGTHS.notes} rows={3} style={styles.textarea} />
@@ -278,12 +285,20 @@ export default function KnowledgeVault({ user, onLogout }) {
                 </button>
               </div>
 
+              {/* YouTube thumbnail in preview */}
+              {previewItem.category === "youtube" && previewItem.url && extractYouTubeId(previewItem.url) && (
+                <div style={{ borderRadius: 8, overflow: "hidden", margin: "8px 0" }}>
+                  <YouTubeThumbnail url={previewItem.url} view="grid" />
+                </div>
+              )}
+
               {/* Title */}
               <h2 style={styles.previewTitle}>{previewItem.title}</h2>
 
               {/* URL */}
               {previewItem.url && (
-                <a href={sanitizeUrl(previewItem.url)} target="_blank" rel="noopener noreferrer" style={styles.previewUrl}>
+                <a href={sanitizeUrl(previewItem.url)} target="_blank" rel="noopener noreferrer" style={{ ...styles.previewUrl, display: "inline-flex", alignItems: "center" }}>
+                  {previewItem.category !== "youtube" && <Favicon url={previewItem.url} size={16} />}
                   {extractDomain(previewItem.url)} ↗
                 </a>
               )}
@@ -358,42 +373,60 @@ export default function KnowledgeVault({ user, onLogout }) {
           <div style={view === "grid" ? styles.grid : styles.list}>
             {filtered.map((item, i) => {
               const cat = getCat(item.category);
+              const isYT = item.category === "youtube" && item.url && extractYouTubeId(item.url);
+              const isListYT = view === "list" && isYT;
               return (
                 <div
                   key={item.id}
                   className="card"
                   onClick={() => setPreviewItem(item)}
-                  style={{ ...(view === "grid" ? styles.gridCard : styles.listCard), cursor: "pointer", animation: `fadeUp 0.35s ease-out ${i * 0.04}s both` }}
+                  style={{
+                    ...(view === "grid" ? styles.gridCard : styles.listCard),
+                    ...(isListYT ? { flexDirection: "row", gap: 16 } : {}),
+                    cursor: "pointer",
+                    animation: `fadeUp 0.35s ease-out ${i * 0.04}s both`,
+                  }}
                 >
-                  {/* Top bar */}
-                  <div style={styles.cardTop}>
-                    <span style={{ ...styles.catBadge, background: cat.color + "14", color: cat.color }}>
-                      {cat.icon} {cat.label}
-                    </span>
-                    {item.pinned && (
-                      <span style={{ fontSize: 14, color: "#D97706" }}>★</span>
-                    )}
-                  </div>
+                  {/* YouTube thumbnail — grid: banner at top, list: left side */}
+                  {isYT && <YouTubeThumbnail url={item.url} view={view} />}
 
-                  {/* Title */}
-                  <h3 style={styles.cardTitle}>{item.title}</h3>
-                  {item.url && <p style={styles.cardDomain}>{extractDomain(item.url)}</p>}
-
-                  {/* Description */}
-                  {item.description && <p style={styles.cardDesc}>{item.description.length > 100 ? item.description.slice(0, 100) + "…" : item.description}</p>}
-
-                  {/* Tags */}
-                  {item.tags.length > 0 && (
-                    <div style={styles.cardTags}>
-                      {item.tags.map(t => (
-                        <span key={t} style={styles.cardTag}>#{t}</span>
-                      ))}
+                  {/* Card content wrapper (needed for list+thumbnail layout) */}
+                  <div style={isListYT ? { flex: 1, display: "flex", flexDirection: "column", gap: 6, minWidth: 0 } : undefined}>
+                    {/* Top bar */}
+                    <div style={styles.cardTop}>
+                      <span style={{ ...styles.catBadge, background: cat.color + "14", color: cat.color }}>
+                        {cat.icon} {cat.label}
+                      </span>
+                      {item.pinned && (
+                        <span style={{ fontSize: 14, color: "#D97706" }}>★</span>
+                      )}
                     </div>
-                  )}
 
-                  {/* Footer */}
-                  <div style={styles.cardFooter}>
-                    <span style={styles.cardTime}>{timeAgo(item.createdAt)}</span>
+                    {/* Title */}
+                    <h3 style={styles.cardTitle}>{item.title}</h3>
+                    {item.url && (
+                      <p style={{ ...styles.cardDomain, display: "flex", alignItems: "center" }}>
+                        {!isYT && <Favicon url={item.url} size={14} />}
+                        {extractDomain(item.url)}
+                      </p>
+                    )}
+
+                    {/* Description */}
+                    {item.description && <p style={styles.cardDesc}>{item.description.length > 100 ? item.description.slice(0, 100) + "…" : item.description}</p>}
+
+                    {/* Tags */}
+                    {item.tags.length > 0 && (
+                      <div style={styles.cardTags}>
+                        {item.tags.map(t => (
+                          <span key={t} style={styles.cardTag}>#{t}</span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Footer */}
+                    <div style={styles.cardFooter}>
+                      <span style={styles.cardTime}>{timeAgo(item.createdAt)}</span>
+                    </div>
                   </div>
                 </div>
               );
