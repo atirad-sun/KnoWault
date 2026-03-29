@@ -14,7 +14,7 @@ export default function KnowledgeVault() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ title: "", url: "", description: "", category: "article", tags: "", notes: "" });
   const [toast, setToast] = useState(null);
-  const [expandedId, setExpandedId] = useState(null);
+  const [previewItem, setPreviewItem] = useState(null);
   const searchRef = useRef(null);
   const { isInstallable, promptInstall } = useInstallPrompt();
 
@@ -43,11 +43,13 @@ export default function KnowledgeVault() {
       showToast("Resource saved");
     }
     resetForm();
+    setPreviewItem(null);
   };
 
   const handleEdit = (item) => {
     setForm({ title: item.title, url: item.url, description: item.description, category: item.category, tags: item.tags.join(", "), notes: item.notes || "" });
     setEditingId(item.id);
+    setPreviewItem(null);
     setShowAdd(true);
   };
 
@@ -55,12 +57,15 @@ export default function KnowledgeVault() {
     const updated = items.filter(it => it.id !== id);
     setItems(updated);
     showToast("Resource removed");
-    setExpandedId(null);
+    setPreviewItem(null);
   };
 
   const handlePin = (id) => {
     const updated = items.map(it => it.id === id ? { ...it, pinned: !it.pinned } : it);
     setItems(updated);
+    if (previewItem?.id === id) {
+      setPreviewItem({ ...previewItem, pinned: !previewItem.pinned });
+    }
   };
 
   const handleDuplicate = (item) => {
@@ -68,6 +73,7 @@ export default function KnowledgeVault() {
     const updated = [dup, ...items];
     setItems(updated);
     showToast("Duplicated");
+    setPreviewItem(null);
   };
 
   const allTags = [...new Set(items.flatMap(it => it.tags))].sort();
@@ -95,6 +101,8 @@ export default function KnowledgeVault() {
 
   const getCat = (id) => CATEGORIES.find(c => c.id === id) || CATEGORIES[5];
 
+  const hasItems = items.length > 0;
+
   return (
     <div className="app-root" style={styles.root}>
       {/* Header */}
@@ -110,9 +118,11 @@ export default function KnowledgeVault() {
                 <span style={{ marginRight: 6 }}>⬇</span> Install App
               </button>
             )}
-            <button className="add-btn" onClick={() => { resetForm(); setShowAdd(true); }} style={styles.addBtn}>
-              <span style={{ fontSize: 20, marginRight: 6, fontWeight: 300 }}>+</span> Add Resource
-            </button>
+            {!hasItems && (
+              <button className="add-btn" onClick={() => { resetForm(); setShowAdd(true); }} style={styles.addBtn}>
+                <span style={{ fontSize: 20, marginRight: 6, fontWeight: 300 }}>+</span> Add Resource
+              </button>
+            )}
           </div>
         </div>
 
@@ -206,8 +216,90 @@ export default function KnowledgeVault() {
         </div>
       )}
 
+      {/* Preview Modal (slide-up) */}
+      {previewItem && (() => {
+        const cat = getCat(previewItem.category);
+        return (
+          <div style={styles.previewOverlay} onClick={(e) => e.target === e.currentTarget && setPreviewItem(null)}>
+            <div style={styles.previewPanel}>
+              {/* Drag handle */}
+              <div style={styles.previewHandle}><div style={styles.previewHandleBar} /></div>
+
+              {/* Category + pin */}
+              <div style={styles.previewTop}>
+                <span style={{ ...styles.catBadge, background: cat.color + "14", color: cat.color }}>
+                  {cat.icon} {cat.label}
+                </span>
+                <button className="icon-btn" onClick={() => handlePin(previewItem.id)} style={{ ...styles.smallIconBtn, color: previewItem.pinned ? "#D97706" : "#A8A29E" }}>
+                  {previewItem.pinned ? "★" : "☆"}
+                </button>
+              </div>
+
+              {/* Title */}
+              <h2 style={styles.previewTitle}>{previewItem.title}</h2>
+
+              {/* URL */}
+              {previewItem.url && (
+                <a href={previewItem.url} target="_blank" rel="noopener noreferrer" style={styles.previewUrl}>
+                  {extractDomain(previewItem.url)} ↗
+                </a>
+              )}
+
+              {/* Description */}
+              {previewItem.description && (
+                <div style={styles.previewSection}>
+                  <span style={styles.previewLabel}>Description</span>
+                  <p style={styles.previewText}>{previewItem.description}</p>
+                </div>
+              )}
+
+              {/* Tags */}
+              {previewItem.tags.length > 0 && (
+                <div style={styles.previewSection}>
+                  <span style={styles.previewLabel}>Tags</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {previewItem.tags.map(t => (
+                      <span key={t} style={styles.previewTag}>#{t}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {previewItem.notes && (
+                <div style={styles.previewSection}>
+                  <span style={styles.previewLabel}>Personal Notes</span>
+                  <p style={{ ...styles.previewText, fontStyle: "italic", whiteSpace: "pre-wrap" }}>{previewItem.notes}</p>
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div style={styles.previewMeta}>
+                <span>Added {timeAgo(previewItem.createdAt)}</span>
+                {previewItem.updatedAt !== previewItem.createdAt && (
+                  <span> · Updated {timeAgo(previewItem.updatedAt)}</span>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div style={styles.previewActions}>
+                <button onClick={() => handleEdit(previewItem)} style={styles.previewEditBtn}>
+                  ✎ Edit
+                </button>
+                <button onClick={() => handleDuplicate(previewItem)} style={styles.previewActionBtn}>
+                  ⧉ Duplicate
+                </button>
+                <button className="del-btn" onClick={() => handleDelete(previewItem.id)} style={{ ...styles.previewActionBtn, color: "#DC2626" }}>
+                  ✕ Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Content */}
-      <main style={styles.main}>
+      <main style={{ ...styles.main, paddingBottom: hasItems ? 100 : 48 }}>
         {filtered.length === 0 ? (
           <div style={styles.emptyState}>
             <div style={styles.emptyIcon}>◇</div>
@@ -223,49 +315,36 @@ export default function KnowledgeVault() {
           <div style={view === "grid" ? styles.grid : styles.list}>
             {filtered.map((item, i) => {
               const cat = getCat(item.category);
-              const isExpanded = expandedId === item.id;
               return (
-                <div key={item.id} className="card" style={{ ...(view === "grid" ? styles.gridCard : styles.listCard), animation: `fadeUp 0.35s ease-out ${i * 0.04}s both` }}>
+                <div
+                  key={item.id}
+                  className="card"
+                  onClick={() => setPreviewItem(item)}
+                  style={{ ...(view === "grid" ? styles.gridCard : styles.listCard), cursor: "pointer", animation: `fadeUp 0.35s ease-out ${i * 0.04}s both` }}
+                >
                   {/* Top bar */}
                   <div style={styles.cardTop}>
                     <span style={{ ...styles.catBadge, background: cat.color + "14", color: cat.color }}>
                       {cat.icon} {cat.label}
                     </span>
-                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      <button className="icon-btn" onClick={() => handlePin(item.id)} style={{ ...styles.smallIconBtn, color: item.pinned ? "#D97706" : "#A8A29E" }} title={item.pinned ? "Unpin" : "Pin"}>
-                        {item.pinned ? "★" : "☆"}
-                      </button>
-                      <button className="icon-btn" onClick={() => setExpandedId(isExpanded ? null : item.id)} style={styles.smallIconBtn} title="More">
-                        ⋯
-                      </button>
-                    </div>
+                    {item.pinned && (
+                      <span style={{ fontSize: 14, color: "#D97706" }}>★</span>
+                    )}
                   </div>
 
-                  {/* Title & link */}
-                  <h3 style={styles.cardTitle}>
-                    {item.url ? (
-                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="link-hover" style={styles.cardLink}>{item.title}</a>
-                    ) : item.title}
-                  </h3>
+                  {/* Title */}
+                  <h3 style={styles.cardTitle}>{item.title}</h3>
                   {item.url && <p style={styles.cardDomain}>{extractDomain(item.url)}</p>}
 
                   {/* Description */}
-                  {item.description && <p style={styles.cardDesc}>{item.description}</p>}
+                  {item.description && <p style={styles.cardDesc}>{item.description.length > 100 ? item.description.slice(0, 100) + "…" : item.description}</p>}
 
                   {/* Tags */}
                   {item.tags.length > 0 && (
                     <div style={styles.cardTags}>
                       {item.tags.map(t => (
-                        <span key={t} className="tag-btn" onClick={() => { setFilterTag(t); setFilterCat("all"); }} style={styles.cardTag}>#{t}</span>
+                        <span key={t} style={styles.cardTag}>#{t}</span>
                       ))}
-                    </div>
-                  )}
-
-                  {/* Notes preview */}
-                  {item.notes && (
-                    <div style={styles.notesPreview}>
-                      <span style={{ fontSize: 11, color: "#78716C", fontWeight: 500 }}>Notes:</span>
-                      <p style={styles.notesText}>{item.notes.length > 120 ? item.notes.slice(0, 120) + "…" : item.notes}</p>
                     </div>
                   )}
 
@@ -273,21 +352,24 @@ export default function KnowledgeVault() {
                   <div style={styles.cardFooter}>
                     <span style={styles.cardTime}>{timeAgo(item.createdAt)}</span>
                   </div>
-
-                  {/* Expanded actions */}
-                  {isExpanded && (
-                    <div style={styles.expandedActions}>
-                      <button className="icon-btn" onClick={() => { handleEdit(item); setExpandedId(null); }} style={styles.actionBtn}>✎ Edit</button>
-                      <button className="icon-btn" onClick={() => { handleDuplicate(item); setExpandedId(null); }} style={styles.actionBtn}>⧉ Duplicate</button>
-                      <button className="del-btn" onClick={() => handleDelete(item.id)} style={{ ...styles.actionBtn, color: "#DC2626" }}>✕ Remove</button>
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
         )}
       </main>
+
+      {/* FAB - Fixed Add Button (only when items exist) */}
+      {hasItems && (
+        <button
+          className="fab"
+          onClick={() => { resetForm(); setShowAdd(true); }}
+          style={styles.fab}
+          aria-label="Add Resource"
+        >
+          <span style={{ fontSize: 28, lineHeight: 1 }}>+</span>
+        </button>
+      )}
 
       {/* Toast */}
       {toast && <div style={styles.toast}>{toast}</div>}
@@ -322,6 +404,11 @@ const styles = {
   },
   installBtn: {
     display: "inline-flex", alignItems: "center", padding: "10px 20px", background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.2s ease",
+  },
+
+  // FAB
+  fab: {
+    position: "fixed", bottom: 24, right: 24, width: 56, height: 56, borderRadius: "50%", background: "#2563EB", color: "#fff", border: "none", fontSize: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(37, 99, 235, 0.3)", zIndex: 50, transition: "all 0.2s ease",
   },
 
   // Search
@@ -414,25 +501,13 @@ const styles = {
     display: "flex", flexWrap: "wrap", gap: 5, marginTop: 2,
   },
   cardTag: {
-    padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 500, background: "#F5F5F4", color: "#78716C", cursor: "pointer", border: "none", transition: "background 0.15s",
-  },
-  notesPreview: {
-    background: "#FAFAF9", borderRadius: 8, padding: "8px 10px", marginTop: 2,
-  },
-  notesText: {
-    fontSize: 13, color: "#57534E", lineHeight: 1.5, marginTop: 2, fontStyle: "italic",
+    padding: "2px 8px", borderRadius: 10, fontSize: 11, fontWeight: 500, background: "#F5F5F4", color: "#78716C", border: "none",
   },
   cardFooter: {
     display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 4,
   },
   cardTime: {
     fontSize: 11, color: "#A8A29E", fontWeight: 500,
-  },
-  expandedActions: {
-    display: "flex", gap: 6, paddingTop: 8, borderTop: "1px solid #F5F5F4", marginTop: 4, animation: "fadeUp 0.2s ease-out both",
-  },
-  actionBtn: {
-    padding: "5px 12px", borderRadius: 6, border: "none", background: "#F5F5F4", fontSize: 13, fontWeight: 500, cursor: "pointer", color: "#57534E", transition: "all 0.15s",
   },
 
   // Empty state
@@ -491,6 +566,53 @@ const styles = {
   },
   saveBtn: {
     padding: "10px 24px", borderRadius: 8, border: "none", background: "#2563EB", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "opacity 0.2s",
+  },
+
+  // Preview modal (slide-up)
+  previewOverlay: {
+    position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(28,25,23,0.35)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s ease-out both",
+  },
+  previewPanel: {
+    background: "#fff", borderRadius: "20px 20px 0 0", maxWidth: 560, width: "100%", maxHeight: "85vh", overflow: "auto", boxShadow: "0 -8px 40px rgba(0,0,0,0.12)", padding: "0 24px 24px", animation: "slideUp 0.3s ease-out both",
+  },
+  previewHandle: {
+    display: "flex", justifyContent: "center", padding: "12px 0 8px", position: "sticky", top: 0, background: "#fff", zIndex: 1,
+  },
+  previewHandleBar: {
+    width: 36, height: 4, borderRadius: 2, background: "#D6D3D1",
+  },
+  previewTop: {
+    display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12,
+  },
+  previewTitle: {
+    fontFamily: "'Source Serif 4', Georgia, serif", fontSize: 24, fontWeight: 700, lineHeight: 1.3, letterSpacing: "-0.02em", marginBottom: 4,
+  },
+  previewUrl: {
+    display: "inline-block", fontSize: 14, color: "#2563EB", textDecoration: "none", marginBottom: 16, fontWeight: 500,
+  },
+  previewSection: {
+    marginBottom: 16,
+  },
+  previewLabel: {
+    display: "block", fontSize: 12, fontWeight: 600, color: "#A8A29E", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6,
+  },
+  previewText: {
+    fontSize: 15, color: "#1C1917", lineHeight: 1.6,
+  },
+  previewTag: {
+    padding: "4px 12px", borderRadius: 12, fontSize: 13, fontWeight: 500, background: "#F5F5F4", color: "#57534E",
+  },
+  previewMeta: {
+    fontSize: 12, color: "#A8A29E", marginBottom: 16, paddingTop: 12, borderTop: "1px solid #F5F5F4",
+  },
+  previewActions: {
+    display: "flex", gap: 8,
+  },
+  previewEditBtn: {
+    flex: 1, padding: "12px 16px", borderRadius: 10, border: "none", background: "#2563EB", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.15s",
+  },
+  previewActionBtn: {
+    padding: "12px 16px", borderRadius: 10, border: "none", background: "#F5F5F4", fontSize: 14, fontWeight: 500, cursor: "pointer", color: "#57534E", transition: "all 0.15s",
   },
 
   // Toast

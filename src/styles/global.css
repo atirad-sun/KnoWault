@@ -10,6 +10,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent zoom on input focus (iOS) */
+input, textarea, select {
+  font-size: 16px !important;
 }
 
 input, textarea, select, button {
@@ -46,6 +53,16 @@ input:focus, textarea:focus, select:focus {
   50% { opacity: 1; }
 }
 
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Hover states */
 .card:hover {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.07);
@@ -80,6 +97,15 @@ input:focus, textarea:focus, select:focus {
 
 .install-btn:hover {
   background: #1D4ED8 !important;
+}
+
+.fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 28px rgba(37, 99, 235, 0.35);
+}
+
+.fab:active {
+  transform: scale(0.95);
 }
 
 /* Mobile responsive */
