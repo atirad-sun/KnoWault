@@ -15,6 +15,7 @@ export default function KnowledgeVault({ user, onLogout }) {
   const [form, setForm] = useState({ title: "", url: "", description: "", category: "article", tags: "", notes: "" });
   const [toast, setToast] = useState(null);
   const [previewItem, setPreviewItem] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
   const searchRef = useRef(null);
   const { isInstallable, promptInstall } = useInstallPrompt();
 
@@ -130,7 +131,7 @@ export default function KnowledgeVault({ user, onLogout }) {
                 <span style={{ fontSize: 20, marginRight: 6, fontWeight: 300 }}>+</span> Add Resource
               </button>
             )}
-            <button onClick={onLogout} style={styles.avatarBtn} title={`Signed in as ${user.displayName || user.email}`}>
+            <button onClick={() => setShowProfile(true)} style={styles.avatarBtn} title={`Signed in as ${user.displayName || user.email}`}>
               {user.photoURL ? (
                 <img src={user.photoURL} alt="" style={styles.avatar} referrerPolicy="no-referrer" />
               ) : (
@@ -385,6 +386,50 @@ export default function KnowledgeVault({ user, onLogout }) {
         </button>
       )}
 
+      {/* Profile Panel */}
+      {showProfile && (
+        <div style={styles.previewOverlay} onClick={(e) => e.target === e.currentTarget && setShowProfile(false)}>
+          <div style={styles.profilePanel}>
+            <div style={styles.previewHandle}><div style={styles.previewHandleBar} /></div>
+
+            <div style={styles.profileContent}>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="" style={styles.profileAvatar} referrerPolicy="no-referrer" />
+              ) : (
+                <div style={styles.profileAvatarFallback}>
+                  {(user.displayName || user.email || "U")[0].toUpperCase()}
+                </div>
+              )}
+
+              <h2 style={styles.profileName}>{user.displayName || "User"}</h2>
+              {user.email && <p style={styles.profileEmail}>{user.email}</p>}
+
+              <div style={styles.profileStats}>
+                <div style={styles.profileStat}>
+                  <span style={styles.profileStatValue}>{items.length}</span>
+                  <span style={styles.profileStatLabel}>Resources</span>
+                </div>
+                <div style={styles.profileStat}>
+                  <span style={styles.profileStatValue}>{[...new Set(items.flatMap(it => it.tags))].length}</span>
+                  <span style={styles.profileStatLabel}>Tags</span>
+                </div>
+                <div style={styles.profileStat}>
+                  <span style={styles.profileStatValue}>{items.filter(it => it.pinned).length}</span>
+                  <span style={styles.profileStatLabel}>Pinned</span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => { setShowProfile(false); onLogout(); }}
+                style={styles.signOutBtn}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && <div style={styles.toast}>{toast}</div>}
     </div>
@@ -636,6 +681,41 @@ const styles = {
   },
   previewActionBtn: {
     padding: "12px 16px", borderRadius: 10, border: "none", background: "#F5F5F4", fontSize: 14, fontWeight: 500, cursor: "pointer", color: "#57534E", transition: "all 0.15s",
+  },
+
+  // Profile panel
+  profilePanel: {
+    background: "#fff", borderRadius: "20px 20px 0 0", maxWidth: 400, width: "100%", boxShadow: "0 -8px 40px rgba(0,0,0,0.12)", padding: "0 24px 32px", animation: "slideUp 0.3s ease-out both",
+  },
+  profileContent: {
+    display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
+  },
+  profileAvatar: {
+    width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid #E8E5E1", marginBottom: 12,
+  },
+  profileAvatarFallback: {
+    width: 72, height: 72, borderRadius: "50%", background: "#F5F5F4", border: "3px solid #E8E5E1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: "#57534E", marginBottom: 12,
+  },
+  profileName: {
+    fontFamily: "'Source Serif 4', Georgia, serif", fontSize: 22, fontWeight: 700, color: "#1C1917", marginBottom: 2,
+  },
+  profileEmail: {
+    fontSize: 14, color: "#78716C", marginBottom: 20,
+  },
+  profileStats: {
+    display: "flex", gap: 24, marginBottom: 24, padding: "16px 0", borderTop: "1px solid #F5F5F4", borderBottom: "1px solid #F5F5F4", width: "100%", justifyContent: "center",
+  },
+  profileStat: {
+    display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+  },
+  profileStatValue: {
+    fontSize: 20, fontWeight: 700, color: "#1C1917",
+  },
+  profileStatLabel: {
+    fontSize: 12, color: "#A8A29E", fontWeight: 500,
+  },
+  signOutBtn: {
+    width: "100%", padding: "14px 24px", borderRadius: 12, border: "1.5px solid #E8E5E1", background: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", color: "#DC2626", transition: "all 0.15s", fontFamily: "'DM Sans', system-ui, sans-serif",
   },
 
   // Toast
