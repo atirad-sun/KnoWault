@@ -104,31 +104,36 @@ export default function KnowledgeVault({ user, onLogout }) {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#FAFAF9" }}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#2563EB", animation: "pulse 1.5s ease-in-out infinite" }} />
-        <p style={{ color: "#78716C", fontSize: 14, marginTop: 16, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Opening your vault…</p>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#FAFAF9", gap: 16 }}>
+        <svg width="48" height="48" viewBox="0 0 64 64" fill="none" style={{ animation: "pulse 1.5s ease-in-out infinite" }}>
+          <rect width="64" height="64" rx="14" fill="#2563EB"/>
+          <path d="M32 14L46 24V38L32 48L18 38V24L32 14Z" stroke="white" strokeWidth="2.5" fill="none"/>
+          <path d="M32 21L41 27.5V36.5L32 43L23 36.5V27.5L32 21Z" fill="white" fillOpacity="0.2"/>
+          <text x="32" y="37" textAnchor="middle" fontFamily="Georgia, serif" fontSize="16" fontWeight="700" fill="white">K</text>
+        </svg>
+        <p style={{ color: "#78716C", fontSize: 14, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Opening your vault…</p>
       </div>
     );
   }
 
   return (
     <div className="app-root" style={styles.root}>
-      {/* Header */}
-      <header style={styles.header}>
-        <div className="header-top" style={styles.headerTop}>
-          <div>
-            <h1 style={styles.title}>Knowledge Vault</h1>
-            <p style={styles.subtitle}>{items.length} resource{items.length !== 1 ? "s" : ""} saved</p>
+      {/* Top Bar */}
+      <div style={styles.topBar}>
+        <div style={styles.topBarInner}>
+          <div style={styles.brand}>
+            <svg width="28" height="28" viewBox="0 0 64 64" fill="none" style={{ flexShrink: 0 }}>
+              <rect width="64" height="64" rx="14" fill="#2563EB"/>
+              <path d="M32 14L46 24V38L32 48L18 38V24L32 14Z" stroke="white" strokeWidth="2.5" fill="none"/>
+              <path d="M32 21L41 27.5V36.5L32 43L23 36.5V27.5L32 21Z" fill="white" fillOpacity="0.2"/>
+              <text x="32" y="37" textAnchor="middle" fontFamily="Georgia, serif" fontSize="16" fontWeight="700" fill="white">K</text>
+            </svg>
+            <span style={styles.brandName}>KnoWault</span>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {isInstallable && (
               <button className="install-btn" onClick={promptInstall} style={styles.installBtn}>
-                <span style={{ marginRight: 6 }}>⬇</span> Install App
-              </button>
-            )}
-            {!hasItems && (
-              <button className="add-btn" onClick={() => { resetForm(); setShowAdd(true); }} style={styles.addBtn}>
-                <span style={{ fontSize: 20, marginRight: 6, fontWeight: 300 }}>+</span> Add Resource
+                <span style={{ marginRight: 6 }}>⬇</span> Install
               </button>
             )}
             <button onClick={() => setShowProfile(true)} style={styles.avatarBtn} title={`Signed in as ${user.displayName || user.email}`}>
@@ -139,6 +144,21 @@ export default function KnowledgeVault({ user, onLogout }) {
               )}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Header */}
+      <header style={styles.header}>
+        <div className="header-top" style={styles.headerTop}>
+          <div>
+            <p style={styles.greeting}>Welcome back{user.displayName ? `, ${user.displayName.split(" ")[0]}` : ""}</p>
+            <p style={styles.subtitle}>{items.length} resource{items.length !== 1 ? "s" : ""} saved</p>
+          </div>
+          {!hasItems && (
+            <button className="add-btn" onClick={() => { resetForm(); setShowAdd(true); }} style={styles.addBtn}>
+              <span style={{ fontSize: 20, marginRight: 6, fontWeight: 300 }}>+</span> Add Resource
+            </button>
+          )}
         </div>
 
         {/* Search */}
@@ -444,19 +464,33 @@ const styles = {
     color: "#1C1917",
   },
 
+  // Top bar
+  topBar: {
+    background: "#fff", borderBottom: "1px solid #E8E5E1", position: "sticky", top: 0, zIndex: 40,
+  },
+  topBarInner: {
+    display: "flex", justifyContent: "space-between", alignItems: "center", maxWidth: 1200, margin: "0 auto", padding: "12px 24px",
+  },
+  brand: {
+    display: "flex", alignItems: "center", gap: 10,
+  },
+  brandName: {
+    fontFamily: "'Source Serif 4', Georgia, serif", fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: "#1C1917",
+  },
+
   // Header
   header: {
-    padding: "32px 24px 0",
+    padding: "20px 24px 0",
     maxWidth: 1200, margin: "0 auto",
   },
   headerTop: {
-    display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 24,
+    display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12, marginBottom: 20,
   },
-  title: {
-    fontFamily: "'Source Serif 4', Georgia, serif", fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#1C1917",
+  greeting: {
+    fontFamily: "'Source Serif 4', Georgia, serif", fontSize: 24, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.2, color: "#1C1917",
   },
   subtitle: {
-    fontSize: 14, color: "#78716C", marginTop: 6, fontWeight: 400,
+    fontSize: 14, color: "#78716C", marginTop: 4, fontWeight: 400,
   },
   addBtn: {
     display: "inline-flex", alignItems: "center", padding: "10px 20px", background: "#2563EB", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.2s ease",
