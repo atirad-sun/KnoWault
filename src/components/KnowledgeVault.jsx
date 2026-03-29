@@ -1,11 +1,11 @@
 import { useState, useRef } from "react";
-import { CATEGORIES, STORAGE_KEY } from "../lib/constants";
+import { CATEGORIES } from "../lib/constants";
 import { generateId, timeAgo, extractDomain } from "../lib/utils";
-import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useFirestore } from "../hooks/useFirestore";
 import { useInstallPrompt } from "../hooks/useInstallPrompt";
 
-export default function KnowledgeVault() {
-  const [items, setItems] = useLocalStorage(STORAGE_KEY, []);
+export default function KnowledgeVault({ user, onLogout }) {
+  const { items, loading, addItem, updateItem, deleteItem } = useFirestore(user.uid);
   const [view, setView] = useState("grid");
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
@@ -29,17 +29,15 @@ export default function KnowledgeVault() {
     setShowAdd(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.title.trim()) return;
     const tags = form.tags.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
     if (editingId) {
-      const updated = items.map(it => it.id === editingId ? { ...it, ...form, tags, updatedAt: Date.now() } : it);
-      setItems(updated);
+      await updateItem(editingId, { ...form, tags, updatedAt: Date.now() });
       showToast("Resource updated");
     } else {
       const newItem = { id: generateId(), ...form, tags, createdAt: Date.now(), updatedAt: Date.now(), pinned: false };
-      const updated = [newItem, ...items];
-      setItems(updated);
+      await addItem(newItem);
       showToast("Resource saved");
     }
     resetForm();
@@ -53,25 +51,25 @@ export default function KnowledgeVault() {
     setShowAdd(true);
   };
 
-  const handleDelete = (id) => {
-    const updated = items.filter(it => it.id !== id);
-    setItems(updated);
+  const handleDelete = async (id) => {
+    await deleteItem(id);
     showToast("Resource removed");
     setPreviewItem(null);
   };
 
-  const handlePin = (id) => {
-    const updated = items.map(it => it.id === id ? { ...it, pinned: !it.pinned } : it);
-    setItems(updated);
+  const handlePin = async (id) => {
+    const item = items.find(it => it.id === id);
+    if (!item) return;
+    const newPinned = !item.pinned;
+    await updateItem(id, { pinned: newPinned });
     if (previewItem?.id === id) {
-      setPreviewItem({ ...previewItem, pinned: !previewItem.pinned });
+      setPreviewItem({ ...previewItem, pinned: newPinned });
     }
   };
 
-  const handleDuplicate = (item) => {
+  const handleDuplicate = async (item) => {
     const dup = { ...item, id: generateId(), title: item.title + " (copy)", createdAt: Date.now(), updatedAt: Date.now(), pinned: false };
-    const updated = [dup, ...items];
-    setItems(updated);
+    await addItem(dup);
     showToast("Duplicated");
     setPreviewItem(null);
   };
@@ -103,6 +101,15 @@ export default function KnowledgeVault() {
 
   const hasItems = items.length > 0;
 
+  if (loading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#FAFAF9" }}>
+        <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#2563EB", animation: "pulse 1.5s ease-in-out infinite" }} />
+        <p style={{ color: "#78716C", fontSize: 14, marginTop: 16, fontFamily: "'DM Sans', system-ui, sans-serif" }}>Opening your vault…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="app-root" style={styles.root}>
       {/* Header */}
@@ -112,7 +119,7 @@ export default function KnowledgeVault() {
             <h1 style={styles.title}>Knowledge Vault</h1>
             <p style={styles.subtitle}>{items.length} resource{items.length !== 1 ? "s" : ""} saved</p>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {isInstallable && (
               <button className="install-btn" onClick={promptInstall} style={styles.installBtn}>
                 <span style={{ marginRight: 6 }}>⬇</span> Install App
@@ -123,6 +130,13 @@ export default function KnowledgeVault() {
                 <span style={{ fontSize: 20, marginRight: 6, fontWeight: 300 }}>+</span> Add Resource
               </button>
             )}
+            <button onClick={onLogout} style={styles.avatarBtn} title={`Signed in as ${user.displayName || user.email}`}>
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="" style={styles.avatar} referrerPolicy="no-referrer" />
+              ) : (
+                <span style={styles.avatarFallback}>{(user.displayName || user.email || "U")[0].toUpperCase()}</span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -404,6 +418,15 @@ const styles = {
   },
   installBtn: {
     display: "inline-flex", alignItems: "center", padding: "10px 20px", background: "#1E40AF", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.2s ease",
+  },
+  avatarBtn: {
+    background: "none", border: "2px solid #E8E5E1", borderRadius: "50%", width: 36, height: 36, padding: 0, cursor: "pointer", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color 0.15s",
+  },
+  avatar: {
+    width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover",
+  },
+  avatarFallback: {
+    fontSize: 14, fontWeight: 600, color: "#57534E",
   },
 
   // FAB
